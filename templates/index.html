@@ -1,0 +1,464 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MNIST Digit Classifier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #343a40;
+      line-height: 1.6;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .container {
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 30px;
+      max-width: 900px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+    h1 {
+      text-align: center;
+      color: #495057;
+      margin-bottom: 25px;
+      font-size: 2em;
+    }
+    .main-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+    }
+    .canvas-section, .info-section {
+      flex: 1;
+      min-width: 300px;
+    }
+    .canvas-wrapper {
+      background-color: #e9ecef;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    canvas#board {
+      display: block;
+      margin: 0 auto;
+      border: 1px solid #ced4da;
+      background: #ffffff;
+      border-radius: 6px;
+      touch-action: none;
+    }
+    .tools {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+      align-items: center;
+      justify-content: center;
+    }
+    .tools label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #6c757d;
+      font-size: 0.95em;
+    }
+    .tools input[type="range"] {
+      width: 100px;
+      -webkit-appearance: none;
+      height: 6px;
+      background: #dee2e6; 
+      border-radius: 3px;
+      outline: none;
+      transition: background 0.1s ease;
+    }
+    .tools input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #007bff;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    /* --- 펜 굵기 표시 원 스타일 (제거됨) --- */
+    /* #pen-size-indicator 관련 CSS 삭제 */
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 18px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+    }
+    button:hover {
+      background-color: #0056b3;
+      transform: translateY(-1px);
+    }
+    button:active {
+      transform: translateY(0);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+    }
+    #predict { background-color: #28a745; box-shadow: 0 2px 5px rgba(40, 167, 69, 0.2); }
+    #predict:hover { background-color: #218838; }
+    #clear { background-color: #dc3545; box-shadow: 0 2px 5px rgba(220, 53, 69, 0.2); }
+    #clear:hover { background-color: #c82333; }
+
+    .result {
+      margin-top: 20px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.3em;
+      color: #28a745;
+    }
+    .info-section p {
+      margin-bottom: 10px;
+      color: #495057;
+    }
+    .info-section ul {
+      list-style-type: disc;
+      padding-left: 20px;
+      color: #6c757d;
+    }
+    .info-section li {
+      margin-bottom: 5px;
+    }
+
+    /* Chart specific styles */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-width: 280px; 
+      margin: 20px auto 0;
+      padding: 10px;
+      background-color: #f1f3f5;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    canvas#chart {
+      display: block;
+      width: 100% !important; 
+      height: auto !important;
+      background: transparent; 
+      border: none;
+    }
+    .tooltip {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      pointer-events: none; 
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 10;
+    }
+    .tooltip.active {
+      opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+      .main-content {
+        flex-direction: column;
+        align-items: center;
+      }
+      .canvas-section, .info-section {
+        min-width: unset;
+        width: 100%;
+      }
+      .tools {
+        justify-content: space-around;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MNIST 손글씨 숫자 인식</h1>
+
+    <div class="main-content">
+      <div class="canvas-section">
+        <div class="canvas-wrapper">
+          <canvas id="board" width="280" height="280"></canvas>
+        </div>
+        <div class="tools">
+          <label>펜 굵기
+            <input id="size" type="range" min="8" max="40" value="24"/>
+            </label>
+          <button id="clear" type="button">지우기</button>
+          <button id="predict" type="button">예측하기</button>
+        </div>
+        <div class="result" id="result"></div>
+        
+        <div class="chart-container">
+          <canvas id="chart" width="280" height="200"></canvas>
+          <div id="chart-tooltip" class="tooltip"></div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <p>캔버스에 마우스 또는 터치로 숫자를 그린 뒤 “예측하기” 버튼을 눌러보세요.</p>
+        <ul>
+          <li>그림은 28x28 픽셀의 그레이스케일 이미지로 전처리되어 모델에 입력됩니다.</li>
+          <li>모델은 입력된 이미지가 어떤 숫자인지 예측하고, 그 결과를 표시합니다.</li>
+          <li>오른쪽 그래프는 각 숫자로 예측될 확률을 시각화하여 보여줍니다.</li>
+          <li>그래프 막대에 마우스를 올리면 정확한 확률 값을 볼 수 있습니다.</li>
+        </ul>
+        <p>이 웹 애플리케이션은 간단한 머신러닝 모델(Keras/TensorFlow 기반)을 사용하여 손글씨 숫자를 분류합니다.</p>
+        <p>최대한 진하게, 캔버스 중앙에 크게 그릴수록 정확도가 높아집니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const sizeEl = document.getElementById('size');
+    const clearBtn = document.getElementById('clear');
+    const predictBtn = document.getElementById('predict');
+    const resultEl = document.getElementById('result');
+    
+    // 펜 굵기 표시기 변수 (제거됨)
+    // const sizeIndicator = document.getElementById('pen-size-indicator'); 
+
+    const chartCanvas = document.getElementById('chart');
+    const chartCtx = chartCanvas.getContext('2d');
+    const chartTooltip = document.getElementById('chart-tooltip');
+
+    // Drawing variables
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#000';
+
+    let drawing = false;
+    let last = null;
+    let currentProbs = []; 
+
+    function getPos(e, targetCanvas) {
+      const rect = targetCanvas.getBoundingClientRect();
+      let clientX, clientY;
+
+      if (e.touches && e.touches[0]) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function startDraw(e) {
+      drawing = true;
+      ctx.lineWidth = Number(sizeEl.value);
+      last = getPos(e, canvas);
+    }
+    function moveDraw(e) {
+      if (!drawing) return;
+      const p = getPos(e, canvas);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+      e.preventDefault();
+    }
+    function endDraw() { drawing = false; last = null; }
+
+    // Drawing event listeners
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', moveDraw);
+    window.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', moveDraw, { passive: false });
+    canvas.addEventListener('touchend', endDraw);
+
+    // --- 슬라이더 채우기 로직 (수정) ---
+    function updatePenSizeIndicator() {
+      // 1. 원형 굵기 표시기 로직 (제거됨)
+      
+      // 2. 슬라이더 트랙 채우기 (유지)
+      const value = sizeEl.value;
+      const min = sizeEl.min;
+      const max = sizeEl.max;
+      // 현재 값의 비율(%) 계산
+      const percentage = ((value - min) / (max - min)) * 100;
+      
+      // CSS linear-gradient를 사용하여 배경색 설정
+      const fillColor = '#007bff'; // 채워질 색 (엄지손가락과 동일)
+      const trackColor = '#dee2e6'; // 기본 트랙 색
+      
+      sizeEl.style.background = `linear-gradient(to right, ${fillColor} ${percentage}%, ${trackColor} ${percentage}%)`;
+    }
+    // 슬라이더를 조작할 때마다 굵기 갱신
+    sizeEl.addEventListener('input', updatePenSizeIndicator);
+    // 페이지 로드 시 초기 굵기 및 트랙 채우기 설정
+    updatePenSizeIndicator();
+    // --------------------------------------------------
+
+    // Chart variables and functions
+    const CHART_BAR_COLORS = ['#69c0ff', '#87e8de', '#ffd666', '#ff9c6e', '#ffc069', '#95de64', '#5cdbd3', '#ff85c0', '#b37feb', '#ffda82'];
+    const CHART_HIGHLIGHT_COLOR = '#007bff';
+
+    function drawChart(probs, animate = true) {
+      currentProbs = probs; 
+
+      const w = chartCanvas.width;
+      const h = chartCanvas.height;
+      chartCtx.clearRect(0, 0, w, h);
+
+      const barWidth = w / 10 * 0.7;
+      const spacing = w / 10 * 0.3;
+      const maxBarHeight = h - 30; 
+
+      chartCtx.font = '15px system-ui';
+      chartCtx.textAlign = 'center';
+
+      chartCtx.strokeStyle = '#cccccc';
+      chartCtx.lineWidth = 1;
+      chartCtx.beginPath();
+      chartCtx.moveTo(0, h - 25);
+      chartCtx.lineTo(w, h - 25);
+      chartCtx.stroke();
+
+      for (let i = 0; i < 10; i++) {
+        const targetProb = probs[i];
+        const initialHeight = animate ? 0 : targetProb * maxBarHeight;
+        
+        const x = (spacing / 2) + i * (barWidth + spacing);
+
+        function animateBar(currentHeight) {
+          chartCtx.clearRect(x - 1, 0, barWidth + 2, h - 25); 
+          
+          const y = h - currentHeight - 25; 
+
+          chartCtx.fillStyle = CHART_BAR_COLORS[i];
+          chartCtx.fillRect(x, y, barWidth, currentHeight);
+
+          chartCtx.fillStyle = '#343a40';
+          chartCtx.fillText(i, x + barWidth / 2, h - 5);
+        }
+
+        if (animate) {
+          let currentAnimationHeight = 0;
+          const animationDuration = 500; // ms
+          const startTime = performance.now();
+
+          function frame() {
+            const elapsedTime = performance.now() - startTime;
+            const progress = Math.min(elapsedTime / animationDuration, 1);
+            currentAnimationHeight = progress * (targetProb * maxBarHeight);
+            
+            animateBar(currentAnimationHeight);
+
+            if (progress < 1) {
+              requestAnimationFrame(frame);
+            }
+          }
+          requestAnimationFrame(frame);
+        } else {
+          animateBar(initialHeight);
+        }
+      }
+    }
+
+    // Chart tooltip event listeners
+    chartCanvas.addEventListener('mousemove', (e) => {
+      const pos = getPos(e, chartCanvas);
+      const w = chartCanvas.width;
+      const barWidth = w / 10 * 0.7;
+      const spacing = w / 10 * 0.3;
+
+      let hoveredBarIndex = -1;
+
+      for (let i = 0; i < 10; i++) {
+        const x = (spacing / 2) + i * (barWidth + spacing);
+        if (pos.x >= x && pos.x <= x + barWidth) {
+          hoveredBarIndex = i;
+          break;
+        }
+      }
+
+      if (hoveredBarIndex !== -1 && currentProbs.length > 0) {
+        const prob = currentProbs[hoveredBarIndex];
+        chartTooltip.textContent = `${hoveredBarIndex}: ${(prob * 100).toFixed(2)}%`;
+        chartTooltip.style.left = `${pos.x + 10}px`;
+        chartTooltip.style.top = `${pos.y - 30}px`; 
+        chartTooltip.classList.add('active');
+      } else {
+        chartTooltip.classList.remove('active');
+      }
+    });
+
+    chartCanvas.addEventListener('mouseleave', () => {
+      chartTooltip.classList.remove('active');
+    });
+
+    // Clear button
+    clearBtn.addEventListener('click', () => {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#000';
+      resultEl.textContent = '';
+      chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      currentProbs = []; 
+      chartTooltip.classList.remove('active');
+    });
+
+    // Predict button
+    predictBtn.addEventListener('click', async () => {
+      resultEl.textContent = '예측 중...';
+      chartTooltip.classList.remove('active'); 
+
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      const fd = new FormData();
+      fd.append('file', blob, 'drawn.png');
+
+      try {
+        const r = await fetch('/predict', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (j.error) {
+          resultEl.textContent = '에러: ' + j.error;
+        } else {
+          resultEl.textContent = `예측: ${j.digit} (확률 ${(j.prob * 100).toFixed(2)}%)`;
+          drawChart(j.all_probs, true); 
+        }
+      } catch (e) {
+        resultEl.textContent = '네트워크 에러: ' + e.message;
+        console.error('Prediction fetch error:', e);
+      }
+    });
+  </script>
+</body>
+</html>
